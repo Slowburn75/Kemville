@@ -56,3 +56,6 @@ Added a patient-growth overview to the doctor demo: 8 total fictional registered
 
 ## Review deployment preparation
 User authorized publishing to Slowburn75/Kemville and Vercel for clinician review. GitHub repository confirmed empty; initialized local main branch. Staged application source, supplied assets, migrations and documentation; private environment files, build outputs, node_modules and Vercel metadata remain ignored. Credential-pattern scan found no staged credentials. Review deployment uses mock data and no live provider/database configuration.
+
+## Published client review
+Pushed main to https://github.com/Slowburn75/Kemville (initial application commit 89dfdda). Vercel deployment dpl_3sPkB4nKXpVizZ8QkMiE4LkKQk2L reached READY and is aliased at https://kemville.vercel.app. Public homepage, doctor, admin and consultation routes returned HTTP 200 without authentication. Local ESLint, 12 unit tests and production build passed; Vercel's remote build also passed. No live credentials or database configuration were added. GitHub-to-Vercel automatic deployment integration failed to connect, so this release was deployed directly with the CLI; future pushes require a manual deployment until the integration is configured.

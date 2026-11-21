@@ -19,3 +19,16 @@ Use an appropriate commercial Vercel plan; do not use Hobby for commercial produ
 Provision Neon branch and execute migration/integration tests. Verify clinician identity and registration, support details and clinic before activation. Complete booking/payment state machine, transactional outbox worker, provider retry/idempotency, profile editor, MFA and operational dashboards. Review Nigerian privacy/health obligations with qualified professionals. Test Paystack sandbox, Google authorization and Resend delivery. Perform access-control and penetration tests, recovery drill, accessible mobile QA and policy approval. Configure monitoring without medical payloads.
 
 Read provider guidance: [Paystack signed webhooks](https://paystack.com/docs/v2/developer-tools/integration/webhooks), [Prisma custom extension migrations](https://www.prisma.io/docs/orm/v7/prisma-schema/postgresql-extensions). Current schema uses Prisma 6 conventions.
+
+## Client review deployment — 2026-11-21
+
+- Repository: https://github.com/Slowburn75/Kemville (main).
+- Public review site: https://kemville.vercel.app
+- Doctor: https://kemville.vercel.app/demo/doctor
+- Admin: https://kemville.vercel.app/demo/admin
+- Booking walkthrough: https://kemville.vercel.app/demo/consultation
+- Vercel project: mohammedolamide1-4163s-projects/kemville.
+
+Deployed directly using the authenticated Vercel CLI. GitHub integration connection failed; pushes currently do not trigger automatic Vercel deployment. Until the Vercel GitHub App repository access is connected, publish updates with `vercel deploy --prod --scope mohammedolamide1-4163s-projects` from this linked project. `.vercel` metadata remains local and ignored.
+
+This is a publicly accessible presentation demo with fictional data. No database or provider secrets were configured. No migration or seed was run remotely. Live services remain disabled; real clinical use still requires the production gates above.
