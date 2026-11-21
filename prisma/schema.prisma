@@ -1,0 +1,376 @@
+generator client {
+ provider = "prisma-client-js"
+}
+datasource db {
+ provider = "postgresql"
+ url = env("DATABASE_URL")
+ directUrl = env("DIRECT_URL")
+}
+enum Role {
+ PATIENT
+ DOCTOR
+ ADMIN
+}
+enum AppointmentStatus {
+ PENDING
+ CONFIRMED
+ COMPLETED
+ CANCELLED
+ NO_SHOW
+ RECONCILIATION
+}
+enum PaymentStatus {
+ PENDING
+ SUCCEEDED
+ FAILED
+ REFUND_PENDING
+ REFUNDED
+ EXCEPTION
+}
+
+model User {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+email String @unique
+passwordHash String
+role Role @default(PATIENT)
+verifiedAt DateTime? @db.Timestamptz(3)
+mfaEnabled Boolean @default(false)
+profile PatientProfile?
+doctor Doctor?
+sessions Session[]
+tokens AuthToken[]
+ @@map("users")
+}
+
+model PatientProfile {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+userId String @unique @db.Uuid
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+fullName String
+birthDate DateTime @db.Date
+sex String
+phone String
+country String
+state String
+occupation String?
+communication String?
+medical PatientMedicalProfile?
+emergency EmergencyContact?
+appointments Appointment[]
+holds BookingHold[]
+ @@map("patient_profiles")
+}
+
+model PatientMedicalProfile {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+patientId String @unique @db.Uuid
+patient PatientProfile @relation(fields: [patientId], references: [id], onDelete: Cascade)
+encryptedProfile String
+keyVersion Int @default(1)
+ @@map("patient_medical_profiles")
+}
+
+model EmergencyContact {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+patientId String @unique @db.Uuid
+patient PatientProfile @relation(fields: [patientId], references: [id], onDelete: Cascade)
+encryptedContact String
+ @@map("emergency_contacts")
+}
+
+model Doctor {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+userId String @unique @db.Uuid
+user User @relation(fields: [userId], references: [id])
+verifiedAt DateTime? @db.Timestamptz(3)
+timezone String @default("Africa/Lagos")
+rules AvailabilityRule[]
+exceptions AvailabilityException[]
+holds BookingHold[]
+appointments Appointment[]
+ @@map("doctors")
+}
+
+model ConsultationService {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+code String @unique
+name String
+enabled Boolean @default(false)
+durationMinutes Int @default(30)
+bufferMinutes Int @default(10)
+minimumNoticeMinutes Int @default(1440)
+horizonDays Int @default(60)
+prices ServicePrice[]
+promotions PromotionService[]
+holds BookingHold[]
+ @@map("consultation_services")
+}
+
+model ServicePrice {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+serviceId String @db.Uuid
+service ConsultationService @relation(fields: [serviceId], references: [id])
+amountKobo Int
+currency String @default("NGN")
+effectiveAt DateTime @default(now()) @db.Timestamptz(3)
+@@index([serviceId, effectiveAt])
+ @@map("service_prices")
+}
+
+model Promotion {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+code String @unique
+percent Int
+active Boolean @default(false)
+services PromotionService[]
+ @@map("promotions")
+}
+
+model PromotionService {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+promotionId String @db.Uuid
+promotion Promotion @relation(fields: [promotionId], references: [id])
+serviceId String @db.Uuid
+service ConsultationService @relation(fields: [serviceId], references: [id])
+@@unique([promotionId, serviceId])
+ @@map("promotion_services")
+}
+
+model ClinicLocation {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+name String
+address String
+verifiedAt DateTime? @db.Timestamptz(3)
+active Boolean @default(false)
+ @@map("clinic_locations")
+}
+
+model AvailabilityRule {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+doctorId String @db.Uuid
+doctor Doctor @relation(fields: [doctorId], references: [id])
+weekday Int
+startMinute Int
+endMinute Int
+@@index([doctorId, weekday])
+ @@map("availability_rules")
+}
+
+model AvailabilityException {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+doctorId String @db.Uuid
+doctor Doctor @relation(fields: [doctorId], references: [id])
+startsAt DateTime @db.Timestamptz(3)
+endsAt DateTime @db.Timestamptz(3)
+@@index([doctorId, startsAt])
+ @@map("availability_exceptions")
+}
+
+model BookingHold {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+patientId String @db.Uuid
+patient PatientProfile @relation(fields: [patientId], references: [id])
+doctorId String @db.Uuid
+doctor Doctor @relation(fields: [doctorId], references: [id])
+serviceId String @db.Uuid
+service ConsultationService @relation(fields: [serviceId], references: [id])
+startsAt DateTime @db.Timestamptz(3)
+endsAt DateTime @db.Timestamptz(3)
+expiresAt DateTime @db.Timestamptz(3)
+released Boolean @default(false)
+regularKobo Int
+discountKobo Int
+payableKobo Int
+appointment Appointment?
+payments Payment[]
+@@index([doctorId, startsAt])
+@@index([expiresAt])
+ @@map("booking_holds")
+}
+
+model Appointment {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+holdId String @unique @db.Uuid
+hold BookingHold @relation(fields: [holdId], references: [id])
+patientId String @db.Uuid
+patient PatientProfile @relation(fields: [patientId], references: [id])
+doctorId String @db.Uuid
+doctor Doctor @relation(fields: [doctorId], references: [id])
+reference String @unique
+status AppointmentStatus @default(PENDING)
+startsAt DateTime @db.Timestamptz(3)
+endsAt DateTime @db.Timestamptz(3)
+intakes ConsultationIntake[]
+events AppointmentStatusEvent[]
+delivery DeliverySession?
+@@index([patientId, startsAt])
+@@index([doctorId, startsAt])
+ @@map("appointments")
+}
+
+model ConsultationIntake {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+appointmentId String @db.Uuid
+appointment Appointment @relation(fields: [appointmentId], references: [id])
+version Int
+encryptedAnswers String
+keyVersion Int @default(1)
+@@unique([appointmentId, version])
+ @@map("consultation_intakes")
+}
+
+model ConsentRecord {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+userId String @db.Uuid
+purpose String
+policyVersion String
+acceptedAt DateTime @db.Timestamptz(3)
+@@index([userId])
+ @@map("consent_records")
+}
+
+model Payment {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+holdId String @db.Uuid
+hold BookingHold @relation(fields: [holdId], references: [id])
+reference String @unique
+amountKobo Int
+currency String @default("NGN")
+status PaymentStatus @default(PENDING)
+providerTransactionId String? @unique
+refunds Refund[]
+ @@map("payments")
+}
+
+model PaymentWebhookEvent {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+providerEventKey String @unique
+payloadDigest String
+processedAt DateTime? @db.Timestamptz(3)
+ @@map("payment_webhook_events")
+}
+
+model Refund {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+paymentId String @db.Uuid
+payment Payment @relation(fields: [paymentId], references: [id])
+amountKobo Int
+status String
+providerReference String? @unique
+ @@map("refunds")
+}
+
+model DeliverySession {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+appointmentId String @unique @db.Uuid
+appointment Appointment @relation(fields: [appointmentId], references: [id])
+method String
+status String
+meet GoogleMeetSession?
+ @@map("delivery_sessions")
+}
+
+model GoogleMeetSession {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+deliveryId String @unique @db.Uuid
+delivery DeliverySession @relation(fields: [deliveryId], references: [id])
+eventId String @unique
+joinUrl String
+ @@map("google_meet_sessions")
+}
+
+model Notification {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+userId String @db.Uuid
+kind String
+status String
+providerId String?
+@@index([userId])
+ @@map("notifications")
+}
+
+model AuditLog {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+actorId String? @db.Uuid
+action String
+resourceId String
+@@index([resourceId])
+ @@map("audit_logs")
+}
+
+model AppointmentStatusEvent {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+appointmentId String @db.Uuid
+appointment Appointment @relation(fields: [appointmentId], references: [id])
+fromStatus AppointmentStatus
+toStatus AppointmentStatus
+actorId String @db.Uuid
+ @@map("appointment_status_events")
+}
+
+model OutboxEvent {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+deduplicationKey String @unique
+kind String
+resourceId String
+attempts Int @default(0)
+availableAt DateTime @default(now()) @db.Timestamptz(3)
+completedAt DateTime? @db.Timestamptz(3)
+lockedUntil DateTime? @db.Timestamptz(3)
+@@index([completedAt, availableAt])
+ @@map("outbox_events")
+}
+
+model Session {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+userId String @db.Uuid
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+tokenHash String @unique
+expiresAt DateTime @db.Timestamptz(3)
+ @@map("sessions")
+}
+
+model AuthToken {
+ id String @id @default(uuid()) @db.Uuid
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+userId String @db.Uuid
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+tokenHash String @unique
+purpose String
+expiresAt DateTime @db.Timestamptz(3)
+consumedAt DateTime? @db.Timestamptz(3)
+ @@map("auth_tokens")
+}
+
+model RateLimit {
+ id String @id
+ hits Int @default(1)
+ expiresAt DateTime @db.Timestamptz(3)
+ @@map("rate_limits")
+}
